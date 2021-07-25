@@ -1,0 +1,64 @@
+select * from deliveries order by deliveries desc limit 20 ;
+select * from matches order by matches desc limit 20 ;
+
+select * from matches where date between '02-05-2013' and '02-05-2013';
+alter table matches alter column result_margin type integer using (result_margin::integer);
+select * from matches where result_margin > 100;
+
+select * from matches where result = 'tie' order by date desc;
+
+select city,count(*) as "Number of matches" from matches group by city order by "Number of matches" desc;
+
+create table deliveries_v02 as select * from deliveries;
+alter table deliveries_v02 add ball_result text;
+alter table deliveries_v02 alter column total_runs type integer using (total_runs::integer);
+update deliveries_v02 set ball_result = 'dot' where total_runs = 0;
+update deliveries_v02 set ball_result = 'single' where total_runs = 1;
+update deliveries_v02 set ball_result = 'double' where total_runs = 2;
+update deliveries_v02 set ball_result = 'tripal' where total_runs = 3;
+update deliveries_v02 set ball_result = 'boundary' where total_runs >=4;
+select * from deliveries_v02;
+
+select ball_result,count(*) as "Number of deliveries" from deliveries_v02 
+group by ball_result order by "Number of deliveries" desc;
+
+select dismissal_kind,count(*) as "Number of dismissals" from deliveries_v02 
+group by dismissal_kind order by "Number of dismissals" desc;
+alter table deliveries_v02 alter column extra_runs type integer using (extra_runs::integer);
+select bowler, sum(extra_runs) as total_extra_runs 
+       from deliveries_v02
+       group by bowler 
+       order by total_extra_runs desc limit 5;
+
+create table deliveries_v03 as select E.id, E.inning, E.over, E.ball, E.batsman, E.non_striker, E.bowler, E.batsman_runs,
+       E.extra_runs, E.total_runs, E.is_wicket, E.dismissal_kind, E.player_dismissed,
+	   E.fielder, E.extras_type, E.batting_team, E.bowling_team,
+       P.date as match_date, P.venue
+from deliveries_v02 as E
+left join matches as P
+on E.id = P.id
+order by E.id;
+select * from deliveries_v03;
+
+select venue, sum(total_runs) from deliveries_v03 group by venue order by sum desc;
+
+update matches set team1 = 'Rising Pune Supergiant' where team1 = 'Rising Pune Supergiants';
+update matches set team2 = 'Rising Pune Supergiant' where team2 = 'Rising Pune Supergiants';
+
+create table deliveries_v04 as select * from deliveries_v03;
+select * from deliveries_v04;
+alter table deliveries_v04 add column ball_id VARCHAR(50) ;
+update  deliveries_v04 set ball_id = CONCAT(id,'-',inning,'-',over,'-',ball);
+
+create table deliveries_v05 as select 
+   row_number() over (
+	order by ball_id
+   ) r_num,ball_id,id,inning,over,ball,
+   batsman,non_striker,bowler,batsman_runs,
+   extra_runs,total_runs,is_wicket,dismissal_kind,
+   player_dismissed,fielder,extras_type,batting_team,bowling_team 
+   match_date,venue
+from 
+   deliveries_v04;
+select * from deliveries_v05;   
+select * from deliveries_v05 where ball_id in (select BALL_ID from deliveries_v05 where r_num=2);
